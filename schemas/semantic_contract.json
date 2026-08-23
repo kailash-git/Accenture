@@ -1,0 +1,104 @@
+{
+  "semantic_layer": {
+    "version": "1.0.0",
+    "project": "KPI_Intelligence_to_Action_Engine",
+    "metrics": [
+      {
+        "name": "Revenue",
+        "description": "Total sales revenue from transactions",
+        "type": "measure",
+        "formula": "SUM(SalesVolume * AverageSellingPrice)",
+        "unit": "USD",
+        "dimensions": ["Region", "Category", "Date"]
+      },
+      {
+        "name": "GrossMarginPercent",
+        "description": "Gross profit margin percentage",
+        "type": "calculated",
+        "formula": "(Revenue - CostOfGoodsSold) / Revenue",
+        "unit": "Percentage",
+        "dimensions": ["Region", "Category", "Date"]
+      },
+      {
+        "name": "InventoryTurnover",
+        "description": "Rate at which inventory is sold and replaced",
+        "type": "calculated",
+        "formula": "CostOfGoodsSold / AverageInventoryCost",
+        "unit": "Ratio",
+        "dimensions": ["Region", "Category", "Warehouse_ID", "Date"]
+      }
+    ],
+    "dimensions": [
+      {
+        "name": "Region",
+        "type": "string",
+        "description": "Geographical sales region (East, West, North, South)"
+      },
+      {
+        "name": "Category",
+        "type": "string",
+        "description": "Product classification category"
+      },
+      {
+        "name": "Date",
+        "type": "date",
+        "description": "Daily calendar key"
+      },
+      {
+        "name": "SKU_ID",
+        "type": "string",
+        "description": "Granular Stock Keeping Unit Identifier"
+      },
+      {
+        "name": "Warehouse_Bay_Number",
+        "type": "string",
+        "description": "Warehouse location details"
+      }
+    ],
+    "access_policies": [
+      {
+        "role": "vp_sales",
+        "allowed_metrics": [
+          "Revenue",
+          "GrossMarginPercent"
+        ],
+        "allowed_dimensions": [
+          "Region",
+          "Category",
+          "Date"
+        ],
+        "restricted_dimensions": [
+          "SKU_ID",
+          "Warehouse_Bay_Number"
+        ],
+        "masking_rules": {
+          "SKU_ID": "MASK_ENTIRE_COLUMN",
+          "Warehouse_Bay_Number": "BLOCK_ACCESS"
+        }
+      },
+      {
+        "role": "supply_planner",
+        "allowed_metrics": [
+          "InventoryTurnover"
+        ],
+        "allowed_dimensions": [
+          "Region",
+          "Category",
+          "Date",
+          "SKU_ID",
+          "Warehouse_Bay_Number"
+        ],
+        "restricted_metrics": [
+          "Revenue",
+          "GrossMarginPercent",
+          "CostOfGoodsSold"
+        ],
+        "masking_rules": {
+          "Revenue": "BLOCK_ACCESS",
+          "GrossMarginPercent": "BLOCK_ACCESS",
+          "CostOfGoodsSold": "BLOCK_ACCESS"
+        }
+      }
+    ]
+  }
+}
