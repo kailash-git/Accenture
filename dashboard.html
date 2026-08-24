@@ -330,7 +330,7 @@
           <div class="pipeline-stage-card highlight" style="cursor: pointer;" onclick="inspectPipelineStage('Daily Point-of-Sale Sales Data', 'fact_sales_daily')" title="Inspect Sales Daily Schema">
             <div class="stage-left">
               <div class="stage-icon"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 9h6M9 12h6M9 15h4"/></svg></div>
-              <div class="stage-name">Sales Daily (fact_sales_daily)</div>
+              <div class="stage-name">Sales Data (Daily)</div>
             </div>
             <div class="stage-value-pill">$24,817</div>
           </div>
@@ -338,7 +338,7 @@
           <div class="pipeline-stage-card hatched" style="cursor: pointer;" onclick="inspectPipelineStage('Weekly Marketing Spend Feed', 'source_marketing_weekly')" title="Inspect Marketing Weekly Schema">
             <div class="stage-left">
               <div class="stage-icon"><svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></div>
-              <div class="stage-name">Marketing Weekly (source_marketing_weekly)</div>
+              <div class="stage-name">Marketing Spend (Weekly)</div>
             </div>
             <div class="stage-value-pill">$3,000</div>
           </div>
@@ -346,7 +346,7 @@
           <div class="pipeline-stage-card" style="cursor: pointer;" onclick="inspectPipelineStage('Monthly Warehouse Supply Logistics', 'source_supply_monthly')" title="Inspect Supply Monthly Schema">
             <div class="stage-left">
               <div class="stage-icon"><svg viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg></div>
-              <div class="stage-name">Supply Monthly (source_supply_monthly)</div>
+              <div class="stage-name">Supply Logistics (Monthly)</div>
             </div>
             <div class="stage-value-pill">$600</div>
           </div>
@@ -360,7 +360,7 @@
             <div class="story-step-indicator">01 / What Changed?</div>
             <h2 class="story-section-title">Revenue Trajectory & Anomaly Annotations</h2>
             <p class="story-section-description">
-              Daily point-of-sale telemetry across CA and TX retail outlets. Click any annotated anomaly marker directly on the chart to launch the deep-dive investigation drawer.
+              Daily point-of-sale telemetry. Click annotated points to launch investigation.
             </p>
           </div>
 
@@ -420,7 +420,7 @@
             <div class="story-step-indicator">02 / What Drove It?</div>
             <h2 class="story-section-title">Price-Volume-Mix Variance Decomposition</h2>
             <p class="story-section-description">
-              Mathematical decomposition of revenue delta into Price, Volume, Mix, and Basket factors. Hover each bar to inspect root elasticity or click to expand the underlying SKU-level breakdown.
+              Revenue delta decomposed into Price, Volume, and Mix variance contribution factors.
             </p>
           </div>
 
@@ -457,7 +457,7 @@
             <div class="story-step-indicator">03 / Why Did Volume Fall?</div>
             <h2 class="story-section-title">Warehouse Constraints & Anomaly Confidence</h2>
             <p class="story-section-description">
-              Corroboration between physical supply chain disruptions and statistical Z-score thresholds.
+              Physical supply metrics aligned with statistical Z-score thresholds.
             </p>
           </div>
 
@@ -618,7 +618,7 @@
             <div class="story-step-indicator">04 / What Evidence Supports This?</div>
             <h2 class="story-section-title">Retrieved Evidence Trail & Knowledge Graph</h2>
             <p class="story-section-description">
-              GraphRAG correlation between structured ERP tables and unstructured customer feedback. Click any node in the knowledge graph to filter the evidence timeline, or click any card to inspect full transcripts.
+              GraphRAG correlation between structured sales logs and unstructured feedback.
             </p>
           </div>
 
@@ -665,25 +665,31 @@
             <div class="story-step-indicator">05 / Root Cause Synthesis</div>
             <h2 class="story-section-title">Automated Root Cause Reasoning</h2>
             <p class="story-section-description">
-              Deterministic synthesis grounded in semantic formulas and cross-source verification.
+              Causal reasoning synthesized from database records and customer documents.
             </p>
           </div>
 
-          <div class="root-cause-synthesis-card">
-            <div class="rc-header-row">
-              <div style="font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--accent-green);">Verified Root Cause Model</div>
-              <div style="display: flex; gap: 8px; align-items: center;">
-                <button class="btn-outline-secondary" style="font-size: 11px; padding: 4px 10px;" onclick="copySynthesisReasoning()">Copy Reasoning</button>
-                <div class="rc-confidence-pill" id="rcConfidencePill">87% Verified Confidence</div>
-              </div>
+          <div class="root-cause-synthesis-card high">
+            <!-- Simple Meta Header -->
+            <div class="rc-meta-header">
+              <span>Root Cause Verdict</span>
+              <span>·</span>
+              <span class="rc-confidence-pill high" id="rcConfidencePill">87% Verified Confidence</span>
             </div>
 
-            <div class="rc-statement-title" id="rcStatementTitle">
+            <!-- Big Bold Statement -->
+            <h3 class="rc-statement-title" id="rcStatementTitle">
               Supply constraint at primary California distribution partner throttled retail shelf fill rate to 0.78, causing 84% volume loss for SKU FOODS_3_090.
-            </div>
+            </h3>
 
+            <!-- Synthesis Narrative Body -->
             <div class="rc-synthesis-body" id="rcSynthesisBody">
               The 12.4% regional revenue decline in California was not caused by demand erosion or competitor discounting. Price-Volume-Mix decomposition validates that average sell price held steady at $1.25. Concurrently, 3 independent customer complaints and support ticket #ST-4421 confirm widespread empty shelves across Northern California stores during the exact 4-day stockout window recorded in <code>source_supply_monthly</code>.
+            </div>
+
+            <!-- Copy Brief Button -->
+            <div style="margin-top: 20px; display: flex; justify-content: flex-end;">
+              <button class="btn-copy-reasoning" onclick="copySynthesisReasoning()">Copy Briefing</button>
             </div>
           </div>
         </section>
@@ -696,7 +702,7 @@
             <div class="story-step-indicator">06 / Recommended Actions</div>
             <h2 class="story-section-title">Prescriptive Decision Engine</h2>
             <p class="story-section-description">
-              Targeted business interventions to recover lost run-rate and prevent recurring stockouts.
+              Operational playbooks mapped to available business levers and decision rights.
             </p>
           </div>
 
@@ -756,7 +762,7 @@
             <div class="story-step-indicator">07 / System Telemetry</div>
             <h2 class="story-section-title">Engine Health & Pipeline Observability</h2>
             <p class="story-section-description">
-              Sub-second query latency and verified token economics for all anomaly runs.
+              Observability metrics for query latency and token economics.
             </p>
           </div>
 

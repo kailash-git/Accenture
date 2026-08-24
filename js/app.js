@@ -244,14 +244,20 @@ function selectScenario(scenarioKey) {
   }
 
   // 7. Update Root Cause Synthesis Model
+  const rcCard = document.querySelector('.root-cause-synthesis-card');
   const rcConf = document.getElementById('rcConfidencePill');
   const rcTitle = document.getElementById('rcStatementTitle');
   const rcBody = document.getElementById('rcSynthesisBody');
 
+  const statusClass = anom.confidence >= 75 ? 'high' : (anom.confidence >= 50 ? 'medium' : 'low');
+
+  if (rcCard) {
+    rcCard.className = 'root-cause-synthesis-card';
+    rcCard.classList.add(statusClass);
+  }
   if (rcConf) {
     rcConf.textContent = `${anom.confidence}% Verified Confidence`;
     rcConf.className = 'rc-confidence-pill';
-    const statusClass = anom.confidence >= 75 ? 'high' : (anom.confidence >= 50 ? 'medium' : 'low');
     rcConf.classList.add(statusClass);
   }
   if (rcTitle) rcTitle.textContent = anom.synthesis.title;
