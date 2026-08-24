@@ -110,28 +110,55 @@ function openProfileModal() {
   const body = document.getElementById('profileModalBody');
   if (!body) return;
 
-  body.innerHTML = `
-    <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 20px;">
-      <div class="user-avatar" style="width: 52px; height: 52px; font-size: 18px;">TK</div>
-      <div>
-        <div style="font-size: 16px; font-weight: 700; color: var(--text-primary);">Thirukailash K A</div>
-        <div style="font-size: 12px; color: var(--text-secondary);">VP of Retail Sales · BusinessIntelligence.ai</div>
-        <div style="font-size: 11px; color: var(--accent-green); margin-top: 2px;">Role: Executive Administrator</div>
+  const isPlanner = APP_STATE.activeRole === 'supply_planner';
+
+  if (isPlanner) {
+    body.innerHTML = `
+      <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 20px;">
+        <div class="user-avatar" style="width: 52px; height: 52px; font-size: 18px; background-color: var(--bg-card); border: 1px solid var(--border-medium); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: var(--text-secondary);">TK</div>
+        <div>
+          <div style="font-size: 16px; font-weight: 700; color: var(--text-primary);">Thirukailash K A</div>
+          <div style="font-size: 12px; color: var(--text-secondary);">Supply Planner · BusinessIntelligence.ai</div>
+          <div style="font-size: 11px; color: var(--accent-amber); margin-top: 2px;">Role: Regional Planner (Restricted Access)</div>
+        </div>
       </div>
-    </div>
 
-    <div style="font-size: 12px; font-weight: 700; text-transform: uppercase; color: var(--text-tertiary); margin-bottom: 8px;">Active RBAC Entitlements Matrix</div>
-    <div style="background: var(--bg-surface); border: 1px solid var(--border-medium); border-radius: var(--radius-md); padding: 14px; font-size: 12px; line-height: 1.7;">
-      ✓ <strong>Revenue & Margin:</strong> Unrestricted (<code>gross_margin_percent</code> visible)<br/>
-      ✓ <strong>Cost Breakdown:</strong> Unrestricted (<code>cost_of_goods_sold</code> visible)<br/>
-      ✓ <strong>Action Dispatch:</strong> PO Approval, Buffer Reallocation Authorized<br/>
-      ✓ <strong>GraphRAG Semantic Search:</strong> Unrestricted ticket & review access
-    </div>
+      <div style="font-size: 12px; font-weight: 700; text-transform: uppercase; color: var(--text-tertiary); margin-bottom: 8px;">Active RBAC Entitlements Matrix</div>
+      <div style="background: var(--bg-surface); border: 1px solid var(--border-medium); border-radius: var(--radius-md); padding: 14px; font-size: 12px; line-height: 1.7;">
+        ✗ <strong>Revenue & Margin:</strong> MASKED / RESTRICTED (<code>revenue</code>, <code>gross_margin_percent</code> hidden)<br/>
+        ✗ <strong>Cost Breakdown:</strong> MASKED (<code>cost_of_goods_sold</code>, <code>marketing_spend</code> hidden)<br/>
+        ✓ <strong>Supply Chain metrics:</strong> Unrestricted (<code>fill_rate</code>, <code>stockout_days</code> visible)<br/>
+        ✓ <strong>GraphRAG Semantic Search:</strong> Unrestricted ticket & review access
+      </div>
 
-    <div style="display: flex; justify-content: flex-end; margin-top: 16px;">
-      <button class="btn-solid-primary" onclick="closeModal('profileModal')">Done</button>
-    </div>
-  `;
+      <div style="display: flex; justify-content: flex-end; margin-top: 16px;">
+        <button class="btn-solid-primary" onclick="closeModal('profileModal')">Done</button>
+      </div>
+    `;
+  } else {
+    body.innerHTML = `
+      <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 20px;">
+        <div class="user-avatar" style="width: 52px; height: 52px; font-size: 18px; background-color: var(--bg-card); border: 1px solid var(--border-medium); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: var(--text-secondary);">TK</div>
+        <div>
+          <div style="font-size: 16px; font-weight: 700; color: var(--text-primary);">Thirukailash K A</div>
+          <div style="font-size: 12px; color: var(--text-secondary);">VP of Retail Sales · BusinessIntelligence.ai</div>
+          <div style="font-size: 11px; color: var(--accent-green); margin-top: 2px;">Role: Executive Administrator (Full Access)</div>
+        </div>
+      </div>
+
+      <div style="font-size: 12px; font-weight: 700; text-transform: uppercase; color: var(--text-tertiary); margin-bottom: 8px;">Active RBAC Entitlements Matrix</div>
+      <div style="background: var(--bg-surface); border: 1px solid var(--border-medium); border-radius: var(--radius-md); padding: 14px; font-size: 12px; line-height: 1.7;">
+        ✓ <strong>Revenue & Margin:</strong> Unrestricted (<code>gross_margin_percent</code> visible)<br/>
+        ✓ <strong>Cost Breakdown:</strong> Unrestricted (<code>cost_of_goods_sold</code> visible)<br/>
+        ✓ <strong>Action Dispatch:</strong> PO Approval, Buffer Reallocation Authorized<br/>
+        ✓ <strong>GraphRAG Semantic Search:</strong> Unrestricted ticket & review access
+      </div>
+
+      <div style="display: flex; justify-content: flex-end; margin-top: 16px;">
+        <button class="btn-solid-primary" onclick="closeModal('profileModal')">Done</button>
+      </div>
+    `;
+  }
   openModal('profileModal');
 }
 

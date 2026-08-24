@@ -189,11 +189,15 @@ function selectScenario(scenarioKey) {
   const heroActionText = document.querySelector('.hero-action-banner .action-text-main');
   const heroActionImpact = document.querySelector('.hero-action-banner .action-impact-sub');
   const heroApproveBtn = document.getElementById('heroApproveBtn');
+  const heroInvestigateBtn = document.getElementById('heroInvestigateBtn');
 
   if (heroActionText) heroActionText.textContent = anom.recommendedAction.title;
   if (heroActionImpact) heroActionImpact.textContent = `Expected impact: ${anom.recommendedAction.expectedImpact}`;
   if (heroApproveBtn) {
     heroApproveBtn.setAttribute('onclick', `handleActionApprove('${scenarioKey}')`);
+  }
+  if (heroInvestigateBtn) {
+    heroInvestigateBtn.setAttribute('onclick', `openInvestigationDrawer('${scenarioKey}')`);
   }
 
   // 5. Update Confidence Score module text

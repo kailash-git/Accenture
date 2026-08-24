@@ -92,9 +92,7 @@
           </div>
         </div>
 
-        <div class="sidebar-title-section">
-          <h1 class="sidebar-editorial-title">KPI<br><span>Anomaly</span><br>Engine</h1>
-        </div>
+
 
         <div class="sidebar-search-box">
           <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
@@ -319,7 +317,7 @@
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
                   Approve Action
                 </button>
-                <button class="btn-outline-secondary" onclick="openInvestigationDrawer('supply')">
+                <button class="btn-outline-secondary" id="heroInvestigateBtn" onclick="openInvestigationDrawer('supply')">
                   Investigate
                 </button>
               </div>
@@ -592,18 +590,18 @@
                   </td>
                 </tr>
 
-                <tr onclick="showAppToast('Abstention triggered: 2-week feed gap in South Marketing')">
+                <tr onclick="openInvestigationDrawer('sparse')">
                   <td>
-                    <div style="font-weight: 700; color: var(--text-primary);">South / Digital</div>
-                    <div style="font-size: 11px; color: var(--text-tertiary);">Marketing Feed</div>
+                    <div style="font-weight: 700; color: var(--text-primary);">HOUSEHOLD_1_020</div>
+                    <div style="font-size: 11px; color: var(--text-tertiary);">Premium Household Cleaner</div>
                   </td>
-                  <td>TX · Jul–Aug 2013</td>
-                  <td style="color: var(--accent-purple); font-weight: 700;">2 Weeks Missing Data</td>
-                  <td><span class="table-type-pill gap">Missing Feed Gap</span></td>
+                  <td>TX · Aug 2013</td>
+                  <td style="color: var(--accent-green); font-weight: 700;">+$1,850 (New Launch)</td>
+                  <td><span class="table-type-pill sparse" style="background-color: var(--accent-green-dim); color: var(--accent-green); border: 1px solid var(--accent-green-border); font-size: 10px; padding: 2px 6px; border-radius: 2px;">Sparse History</span></td>
                   <td>
                     <div class="table-confidence-bar">
-                      <div class="tcb-track"><div class="tcb-fill" style="width: 18%; background-color: var(--accent-purple);"></div></div>
-                      <span style="font-size: 11px; font-weight: 700; color: var(--accent-purple);">18%</span>
+                      <div class="tcb-track"><div class="tcb-fill" style="width: 95%; background-color: var(--accent-green);"></div></div>
+                      <span style="font-size: 11px; font-weight: 700; color: var(--accent-green);">95%</span>
                     </div>
                   </td>
                 </tr>
