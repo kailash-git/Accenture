@@ -81,6 +81,10 @@ function openInvestigationDrawer(anomalyKey) {
   // Populate Action in Drawer
   const actionContainer = document.getElementById('drawerActionContainer');
   if (actionContainer) {
+    const btnHtml = anom.isApproved
+      ? `<button class="btn-solid-primary" style="flex: 1; justify-content: center; font-size: 12px; background-color: #166534; color: #ffffff;" disabled><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg> Approved & Dispatched</button>`
+      : `<button class="btn-solid-primary" style="flex: 1; justify-content: center; font-size: 12px;" onclick="handleActionApprove('${anomalyKey}', -1, this)">Approve Action</button>`;
+
     actionContainer.innerHTML = `
       <div style="font-size: 13px; font-weight: 700; color: var(--accent-green); margin-bottom: 6px;">
         ${anom.recommendedAction.title}
@@ -89,7 +93,7 @@ function openInvestigationDrawer(anomalyKey) {
         ${anom.recommendedAction.expectedImpact}
       </div>
       <div style="display: flex; gap: 8px;">
-        <button class="btn-solid-primary" style="flex: 1; justify-content: center; font-size: 12px;" onclick="handleActionApprove('${anomalyKey}')">Approve Action</button>
+        ${btnHtml}
         <button class="btn-outline-secondary" style="font-size: 12px;" onclick="closeInvestigationDrawer()">Dismiss</button>
       </div>
     `;

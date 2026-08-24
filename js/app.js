@@ -194,7 +194,18 @@ function selectScenario(scenarioKey) {
   if (heroActionText) heroActionText.textContent = anom.recommendedAction.title;
   if (heroActionImpact) heroActionImpact.textContent = `Expected impact: ${anom.recommendedAction.expectedImpact}`;
   if (heroApproveBtn) {
-    heroApproveBtn.setAttribute('onclick', `handleActionApprove('${scenarioKey}')`);
+    heroApproveBtn.setAttribute('onclick', `handleActionApprove('${scenarioKey}', -1, this)`);
+    if (anom.isApproved) {
+      heroApproveBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg> Approved & Dispatched`;
+      heroApproveBtn.style.backgroundColor = '#166534';
+      heroApproveBtn.style.color = '#ffffff';
+      heroApproveBtn.disabled = true;
+    } else {
+      heroApproveBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg> Approve Action`;
+      heroApproveBtn.style.backgroundColor = '';
+      heroApproveBtn.style.color = '';
+      heroApproveBtn.disabled = false;
+    }
   }
   if (heroInvestigateBtn) {
     heroInvestigateBtn.setAttribute('onclick', `openInvestigationDrawer('${scenarioKey}')`);
@@ -272,6 +283,11 @@ function selectScenario(scenarioKey) {
       else if (idx === 1) verb = scenarioKey === 'supply' ? 'Approve Transfer' : (scenarioKey === 'billing' ? 'Issue Vouchers' : 'Notify Team');
       else verb = 'Confirm Narrative';
 
+      const isStepApproved = anom.approvedSteps && anom.approvedSteps[idx];
+      const btnHtml = isStepApproved 
+        ? `<button class="btn-action-primary" style="background-color: #166534; color: #ffffff;" disabled><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg> Approved</button>`
+        : `<button class="btn-action-primary" onclick="handleActionApprove('${scenarioKey}', ${idx}, this)">${verb}</button>`;
+
       return `
         <div class="action-module-card">
           <div>
@@ -280,7 +296,7 @@ function selectScenario(scenarioKey) {
             <div class="action-card-body">${step}</div>
           </div>
           <div class="action-card-btn-row">
-            <button class="btn-action-primary" onclick="handleActionApprove('${scenarioKey}')">${verb}</button>
+            ${btnHtml}
             <button class="btn-action-outline" onclick="handleActionAssign('${scenarioKey}')">Assign</button>
             <button class="btn-action-outline" onclick="handleActionDismiss('${scenarioKey}')">Dismiss</button>
           </div>

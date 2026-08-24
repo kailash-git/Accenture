@@ -5,19 +5,27 @@
 let pendingDismissTimeout = null;
 let lastDismissedCardId = null;
 
-function handleActionApprove(anomalyKey) {
+function handleActionApprove(anomalyKey, stepIndex, btn) {
   const anom = ANOMALY_DATASET[anomalyKey] || ANOMALY_DATASET.supply;
+  const title = (stepIndex === -1 || stepIndex === undefined) ? anom.recommendedAction.title : anom.recommendedAction.steps[stepIndex];
 
   if (typeof apiClient !== 'undefined') {
     apiClient.approveAction(anomalyKey, {
-      title: anom.recommendedAction.title,
+      title: title,
       expectedImpact: anom.recommendedAction.expectedImpact
     });
   } else {
-    showAppToast(`Approved: ${anom.recommendedAction.title}`);
+    showAppToast(`Approved: ${title}`);
   }
 
-  const btn = document.getElementById(`actionBtn-${anomalyKey}`) || document.getElementById('heroApproveBtn');
+  // Persist approval state
+  if (stepIndex === -1 || stepIndex === undefined) {
+    anom.isApproved = true;
+  } else {
+    if (!anom.approvedSteps) anom.approvedSteps = {};
+    anom.approvedSteps[stepIndex] = true;
+  }
+
   if (btn) {
     btn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg> Approved & Dispatched`;
     btn.style.backgroundColor = '#166534';
