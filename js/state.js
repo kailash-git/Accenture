@@ -5,14 +5,26 @@
 const APP_STATE = {
   activeRole: 'vp_sales', // 'vp_sales' or 'supply_planner'
   activeAnomalyKey: 'supply',
+  activeKPI: 'revenue',
   activeTimeRange: 'all',
   activeTab: 'overview',
   isDrawerOpen: false,
-  isGraphOpen: false,
-  openPvmFactor: null
+  isGraphOpen: true,
+  openPvmFactor: null,
+  // One vote per anomaly per session -- { [scenarioKey]: rating }. Without this,
+  // clicking the thumbs-up/down repeatedly on the same anomaly inserted a new
+  // user_feedback row every time, inflating the Telemetry panel's feedback count
+  // with duplicate votes from a single click-happy session rather than reflecting
+  // one opinion per anomaly.
+  feedbackVotes: {}
 };
 
-// Ground Truth Anomaly Scenarios from SQLite & Semantic Contract
+// OFFLINE FALLBACK DATA ONLY. When api_server.py is reachable, every value shown in the
+// UI is overwritten with live, server-computed data from SQLite (see js/api.js
+// normalizeAnomalyForUI + app.js loadAnomalyListFromBackend/selectScenario). This static
+// object exists solely so the dashboard still renders something if the backend is down;
+// it is never the source of truth during normal/judged operation and is visibly flagged
+// via the "Offline Demo Data" backend status indicator (see updateConnectionStatusUI).
 const ANOMALY_DATASET = {
   supply: {
     id: 'ANOM-2012-11-CA',

@@ -41,25 +41,36 @@ function openInvestigationDrawer(anomalyKey) {
     }, 100);
   }
 
-  // Populate Mini PVM in Drawer
+  // Populate Mini PVM in Drawer (values may be server-masked to null for this role)
   const pvmLayout = document.getElementById('drawerPvmLayout');
-  if (pvmLayout) {
+  if (pvmLayout && anom.pvm) {
     const getPvmColorLocal = (val) => val < 0 ? '#ef4444' : (val > 0 ? '#10b981' : '#718096');
     const factors = [
-      { label: 'Vol', val: anom.pvm.volume.val, color: getPvmColorLocal(anom.pvm.volume.val) },
-      { label: 'Price', val: anom.pvm.price.val, color: getPvmColorLocal(anom.pvm.price.val) },
-      { label: 'Mix', val: anom.pvm.mix.val, color: getPvmColorLocal(anom.pvm.mix.val) },
-      { label: 'Other', val: anom.pvm.other.val, color: getPvmColorLocal(anom.pvm.other.val) }
+      { label: 'Vol', val: anom.pvm.volume && anom.pvm.volume.val },
+      { label: 'Price', val: anom.pvm.price && anom.pvm.price.val },
+      { label: 'Mix', val: anom.pvm.mix && anom.pvm.mix.val },
+      { label: 'Other', val: anom.pvm.other && anom.pvm.other.val }
     ];
-    const maxVal = Math.max(...factors.map(f => Math.abs(f.val)));
+    const numericVals = factors.map(f => f.val).filter(v => typeof v === 'number');
+    const maxVal = numericVals.length ? Math.max(...numericVals.map(Math.abs), 1) : 1;
 
     pvmLayout.innerHTML = factors.map(f => {
+      if (typeof f.val !== 'number') {
+        return `
+          <div class="d-pvm-col">
+            <div class="d-pvm-val" style="color: var(--text-tertiary)">—</div>
+            <div class="d-pvm-bar" style="height: 4px; background-color: var(--text-tertiary); opacity: 0.3"></div>
+            <div class="d-pvm-lbl">${f.label}</div>
+          </div>
+        `;
+      }
+      const color = getPvmColorLocal(f.val);
       const heightPx = Math.max(10, Math.round((Math.abs(f.val) / maxVal) * 50));
       const formatted = `${f.val > 0 ? '+' : ''}${(f.val / 1000).toFixed(1)}k`;
       return `
         <div class="d-pvm-col">
-          <div class="d-pvm-val" style="color: ${f.color}">${formatted}</div>
-          <div class="d-pvm-bar" style="height: ${heightPx}px; background-color: ${f.color}"></div>
+          <div class="d-pvm-val" style="color: ${color}">${formatted}</div>
+          <div class="d-pvm-bar" style="height: ${heightPx}px; background-color: ${color}"></div>
           <div class="d-pvm-lbl">${f.label}</div>
         </div>
       `;
@@ -78,25 +89,37 @@ function openInvestigationDrawer(anomalyKey) {
     `).join('');
   }
 
-  // Populate Action in Drawer
+  // Populate Action in Drawer -- or an abstention notice (REQ-05)
   const actionContainer = document.getElementById('drawerActionContainer');
   if (actionContainer) {
-    const btnHtml = anom.isApproved
-      ? `<button class="btn-solid-primary" style="flex: 1; justify-content: center; font-size: 12px; background-color: #166534; color: #ffffff;" disabled><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg> Approved & Dispatched</button>`
-      : `<button class="btn-solid-primary" style="flex: 1; justify-content: center; font-size: 12px;" onclick="handleActionApprove('${anomalyKey}', -1, this)">Approve Action</button>`;
-
-    actionContainer.innerHTML = `
-      <div style="font-size: 13px; font-weight: 700; color: var(--accent-green); margin-bottom: 6px;">
-        ${anom.recommendedAction.title}
-      </div>
-      <div style="font-size: 12px; color: var(--text-secondary); line-height: 1.5; margin-bottom: 12px;">
-        ${anom.recommendedAction.expectedImpact}
-      </div>
-      <div style="display: flex; gap: 8px;">
-        ${btnHtml}
+    if (anom.abstained || !anom.recommendedAction) {
+      actionContainer.innerHTML = `
+        <div style="font-size: 13px; font-weight: 700; color: var(--accent-amber, #f59e0b); margin-bottom: 6px;">
+          Abstained — No Automated Recommendation
+        </div>
+        <div style="font-size: 12px; color: var(--text-secondary); line-height: 1.5; margin-bottom: 12px;">
+          ${(anom.abstention && anom.abstention.reason) || 'Insufficient or contradictory evidence.'}
+        </div>
         <button class="btn-outline-secondary" style="font-size: 12px;" onclick="closeInvestigationDrawer()">Dismiss</button>
-      </div>
-    `;
+      `;
+    } else {
+      const btnHtml = anom.isApproved
+        ? `<button class="btn-solid-primary" style="flex: 1; justify-content: center; font-size: 12px; background-color: #166534; color: #ffffff;" disabled><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg> Approved & Dispatched</button>`
+        : `<button class="btn-solid-primary" style="flex: 1; justify-content: center; font-size: 12px;" onclick="handleActionApprove('${anomalyKey}', -1, this)">Approve Action</button>`;
+
+      actionContainer.innerHTML = `
+        <div style="font-size: 13px; font-weight: 700; color: var(--accent-green); margin-bottom: 6px;">
+          ${anom.recommendedAction.title}
+        </div>
+        <div style="font-size: 12px; color: var(--text-secondary); line-height: 1.5; margin-bottom: 12px;">
+          Owner: ${anom.recommendedAction.owner} · ${anom.recommendedAction.expectedImpact}
+        </div>
+        <div style="display: flex; gap: 8px;">
+          ${btnHtml}
+          <button class="btn-outline-secondary" style="font-size: 12px;" onclick="closeInvestigationDrawer()">Dismiss</button>
+        </div>
+      `;
+    }
   }
 
   // Render Mini Chart in Drawer

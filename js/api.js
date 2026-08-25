@@ -10,10 +10,10 @@ const API_CONFIG = {
     health: '/api/health',
     anomalies: '/api/anomalies/latest',
     anomalyDetail: (id) => `/api/anomalies/${id}`,
-    pvm: (id) => `/api/anomalies/${id}/pvm`,
-    evidence: (id) => `/api/anomalies/${id}/evidence`,
-    actions: (id) => `/api/anomalies/${id}/actions`,
+    anomalyTimeline: (id) => `/api/anomalies/${id}/timeline`,
+    anomalyGraph: (id) => `/api/anomalies/${id}/graph`,
     approveAction: (id) => `/api/actions/${id}/approve`,
+    assignAction: (id) => `/api/actions/${id}/assign`,
     telemetry: '/api/telemetry',
     submitFeedback: '/api/feedback'
   }
@@ -25,12 +25,16 @@ class BackendApiClient {
     this.isConnected = false;
   }
 
+  _headers(role) {
+    return { 'Accept': 'application/json', 'X-User-Role': role || APP_STATE.activeRole || 'vp_sales' };
+  }
+
   async checkHealth() {
     try {
       const response = await fetch(`${this.baseUrl}${API_CONFIG.endpoints.health}`, {
         method: 'GET',
         headers: { 'Accept': 'application/json' },
-        signal: AbortSignal.timeout(1500)
+        signal: AbortSignal.timeout(2000)
       });
       if (response.ok) {
         this.isConnected = true;
@@ -51,42 +55,128 @@ class BackendApiClient {
     const statusText = document.getElementById('backendStatusText');
     if (statusDot) {
       statusDot.style.backgroundColor = connected ? 'var(--accent-green)' : 'var(--accent-amber)';
-      statusDot.title = connected ? 'Connected to live SQLite backend & Analytics Engine' : 'Running in local client mode (Backend offline)';
+      statusDot.title = connected ? 'Connected to live SQLite backend & Analytics Engine' : 'Running in local offline demo mode (backend unreachable — start api_server.py)';
     }
     if (statusText) {
-      statusText.textContent = connected ? 'Live DB Synced' : 'Client Mode';
+      statusText.textContent = connected ? 'Live DB Synced' : 'Offline Demo Data';
     }
   }
 
-  async fetchAnomalies() {
+  /* -------------------- Normalization: server schema -> UI schema -------------------- */
+  normalizeAnomalyForUI(raw, existing) {
+    if (!raw) return existing;
+    const action = raw.recommendedAction;
+    const abstained = !!raw.abstained;
+
+    const steps = action ? [
+      { label: 'Driver', text: action.driver },
+      { label: 'Controllable Lever', text: action.controllable_lever },
+      { label: 'Action', text: action.action },
+      { label: 'Owner', text: action.owner },
+      { label: 'Monitoring Plan', text: action.monitoring_plan }
+    ] : [];
+
+    return {
+      ...existing,
+      id: raw.id,
+      kpiName: raw.kpi_name,
+      title: (existing && existing.title) || raw.kpi_name + (raw.direction === 'DOWN' ? ' Decline' : ' Movement'),
+      category: (existing && existing.category) || raw.scenario_key,
+      sku: raw.item_id,
+      region: raw.state_id,
+      date: (raw.period_start || '').substring(0, 7),
+      zScore: typeof raw.z_score === 'number' ? Number(raw.z_score.toFixed(2)) : raw.z_score,
+      deviation: typeof raw.deviation_pct === 'number' ? `${(raw.deviation_pct * 100).toFixed(1)}%` : raw.deviation,
+      confidence: Math.round(raw.confidence),
+      status: raw.status,
+      warehouse: (raw.logistics && raw.logistics.title) || '',
+      period_start: raw.period_start,
+      period_end: raw.period_end,
+      headline: raw.headline,
+      summary: raw.summary,
+      synthesis: raw.synthesis,
+      pvm: raw.pvm,
+      products: raw.products,
+      evidence: raw.evidence,
+      logistics: raw.logistics,
+      graph_context: raw.graph_context,
+      persona: raw.persona,
+      generation_method: raw.generation_method,
+      abstained: abstained,
+      abstention: raw.abstention,
+      rawAction: action,
+      recommendedAction: action ? {
+        title: action.action,
+        expectedImpact: action.expected_impact,
+        owner: action.owner,
+        monitoringPlan: action.monitoring_plan,
+        driver: action.driver,
+        controllableLever: action.controllable_lever,
+        confidence: action.confidence,
+        steps: steps
+      } : null,
+      _maskedFields: raw._masked_fields || []
+    };
+  }
+
+  async fetchAnomalies(role) {
     if (!this.isConnected) {
       return Object.values(ANOMALY_DATASET);
     }
     try {
-      const res = await fetch(`${this.baseUrl}${API_CONFIG.endpoints.anomalies}`);
-      if (res.ok) {
-        const data = await res.json();
-        return data;
-      }
+      const res = await fetch(`${this.baseUrl}${API_CONFIG.endpoints.anomalies}`, { headers: this._headers(role) });
+      if (res.ok) return await res.json();
     } catch (err) {
-      console.warn('API call failed, falling back to dataset store:', err);
+      console.warn('API call failed, falling back to offline dataset:', err);
     }
     return Object.values(ANOMALY_DATASET);
   }
 
-  async fetchAnomalyDetail(anomalyKey) {
+  async fetchAnomalyDetail(anomalyKey, role) {
     if (!this.isConnected) {
-      return ANOMALY_DATASET[anomalyKey] || ANOMALY_DATASET.supply;
+      return null;
     }
     try {
-      const res = await fetch(`${this.baseUrl}${API_CONFIG.endpoints.anomalyDetail(anomalyKey)}`);
-      if (res.ok) {
-        return await res.json();
-      }
+      const res = await fetch(`${this.baseUrl}${API_CONFIG.endpoints.anomalyDetail(anomalyKey)}`, { headers: this._headers(role) });
+      if (res.ok) return await res.json();
     } catch (err) {
-      console.warn('API call failed, falling back to dataset store:', err);
+      console.warn('API call failed, falling back to offline dataset:', err);
     }
-    return ANOMALY_DATASET[anomalyKey] || ANOMALY_DATASET.supply;
+    return null;
+  }
+
+  async fetchAnomalyTimeline(anomalyKey, role, metric = 'revenue') {
+    if (!this.isConnected) return null;
+    try {
+      const url = `${this.baseUrl}${API_CONFIG.endpoints.anomalyTimeline(anomalyKey)}?metric=${encodeURIComponent(metric)}`;
+      const res = await fetch(url, { headers: this._headers(role) });
+      if (res.ok) return await res.json();
+    } catch (err) {
+      console.warn('API call failed to fetch timeline:', err);
+    }
+    return null;
+  }
+
+  async fetchAnomalyGraph(anomalyKey, role) {
+    if (!this.isConnected) return null;
+    try {
+      const res = await fetch(`${this.baseUrl}${API_CONFIG.endpoints.anomalyGraph(anomalyKey)}`, { headers: this._headers(role) });
+      if (res.ok) return await res.json();
+    } catch (err) {
+      console.warn('API call failed to fetch knowledge graph:', err);
+    }
+    return null;
+  }
+
+  async fetchTelemetry() {
+    if (!this.isConnected) return null;
+    try {
+      const res = await fetch(`${this.baseUrl}${API_CONFIG.endpoints.telemetry}`);
+      if (res.ok) return await res.json();
+    } catch (err) {
+      console.warn('API call failed to fetch telemetry:', err);
+    }
+    return null;
   }
 
   async approveAction(anomalyKey, actionData = {}) {
@@ -105,16 +195,33 @@ class BackendApiClient {
         });
         if (res.ok) {
           const result = await res.json();
-          showAppToast(`Audit Log #AUD-${result.audit_id || '901'} recorded in SQLite`);
+          // result.audit_id already includes the "AUD-" prefix (api_server.py's
+          // _new_audit_id()) -- this template used to prepend a second one, showing
+          // "AUD-AUD-1a2b3c4d" in the toast.
+          showAppToast(`Audit Log #${result.audit_id || 'AUD-000000'} recorded in SQLite`);
           return result;
         }
       } catch (err) {
         console.warn('Failed to record approval in backend, logged locally:', err);
       }
     }
-    // Local fallback
     showAppToast(`Action verified & saved to local session audit queue`);
     return { success: true, local: true };
+  }
+
+  async assignAction(anomalyKey, assignee, sla) {
+    if (!this.isConnected) return { success: false, local: true };
+    try {
+      const res = await fetch(`${this.baseUrl}${API_CONFIG.endpoints.assignAction(anomalyKey)}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ assignee, sla, assigned_by: APP_STATE.activeRole, timestamp: new Date().toISOString() })
+      });
+      if (res.ok) return await res.json();
+    } catch (err) {
+      console.warn('Failed to record assignment in backend:', err);
+    }
+    return { success: false, local: true };
   }
 
   async submitUserFeedback(anomalyId, rating, comments = '') {

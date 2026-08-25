@@ -257,6 +257,20 @@
   color: var(--text-primary);
   margin-bottom: 20px;
   max-width: 920px;
+  transition: font-size var(--dur-fast) var(--ease-standard);
+}
+
+/* Applied by JS (selectScenario in app.js) when the headline text runs long --
+   e.g. abstention headlines ("Abstained: 4% movement detected with no
+   corroborating evidence") or the sparse-history headline are full sentences,
+   not the short punchy "Revenue declined 33.7% in West" this 64px treatment
+   was designed for. At full size a long sentence wraps 4+ lines and reads as
+   an oversized wall of text rather than a headline. */
+.hero-main-title.hero-title-long {
+  font-size: 34px;
+  line-height: 1.3;
+  letter-spacing: -0.01em;
+  max-width: 760px;
 }
 
 .hero-main-title .highlight-drop {

@@ -7,7 +7,11 @@ let lastDismissedCardId = null;
 
 function handleActionApprove(anomalyKey, stepIndex, btn) {
   const anom = ANOMALY_DATASET[anomalyKey] || ANOMALY_DATASET.supply;
-  const title = (stepIndex === -1 || stepIndex === undefined) ? anom.recommendedAction.title : anom.recommendedAction.steps[stepIndex];
+  if (!anom.recommendedAction) {
+    showAppToast('No recommendation to approve — the engine abstained on this anomaly.');
+    return;
+  }
+  const title = (stepIndex === -1 || stepIndex === undefined) ? anom.recommendedAction.title : (anom.recommendedAction.steps[stepIndex] || {}).text || anom.recommendedAction.title;
 
   if (typeof apiClient !== 'undefined') {
     apiClient.approveAction(anomalyKey, {
@@ -42,6 +46,10 @@ function openAssignmentModal(anomalyKey) {
   const anom = ANOMALY_DATASET[anomalyKey] || ANOMALY_DATASET.supply;
   const modalBody = document.getElementById('assignModalBody');
   if (!modalBody) return;
+  if (!anom.recommendedAction) {
+    showAppToast('No recommendation to assign — the engine abstained on this anomaly.');
+    return;
+  }
 
   modalBody.innerHTML = `
     <div style="font-size: 14px; font-weight: 700; color: var(--text-primary); margin-bottom: 6px;">
@@ -75,14 +83,23 @@ function openAssignmentModal(anomalyKey) {
   openModal('assignmentModal');
 }
 
-function confirmAssignment(anomalyKey) {
+async function confirmAssignment(anomalyKey) {
   const select = document.getElementById('assigneeSelect');
   const sla = document.getElementById('slaSelect');
   const assignee = select ? select.value : 'Operations Lead';
   const slaText = sla ? sla.value : '48h';
 
   closeModal('assignmentModal');
-  showAppToast(`Dispatched to ${assignee} with ${slaText} SLA`);
+
+  // Was purely a client-side toast + badge swap with no backend call at all --
+  // an assignment is a decision-rights dispatch just like Approve, and needs the
+  // same audit trail (REQ-06: "actions grounded in... decision rights").
+  let auditSuffix = '';
+  if (typeof apiClient !== 'undefined') {
+    const result = await apiClient.assignAction(anomalyKey, assignee, slaText);
+    if (result && result.success) auditSuffix = ` (Audit #${result.audit_id})`;
+  }
+  showAppToast(`Dispatched to ${assignee} with ${slaText} SLA${auditSuffix}`);
 
   const card = document.getElementById(`actionCard-${anomalyKey}`);
   if (card) {
@@ -252,8 +269,10 @@ function submitCustomAnomaly() {
   showAppToast(`Deployed scenario "${type}" for ${sku} (σ = ${zScore})`);
 }
 
-/* RBAC Role Switcher */
-function setAppRole(roleKey) {
+/* RBAC Role Switcher -- triggers a REAL re-fetch from the backend scoped to the new
+   role, so masking and persona-specific narratives are server-enforced (REQ-04/REQ-08),
+   not a client-side CSS/text swap. */
+async function setAppRole(roleKey) {
   APP_STATE.activeRole = roleKey;
   const isPlanner = roleKey === 'supply_planner';
 
@@ -268,10 +287,20 @@ function setAppRole(roleKey) {
 
   const gmEl = document.getElementById('kpiGrossMargin');
   const cogsEl = document.getElementById('kpiCogs');
-  if (gmEl) gmEl.textContent = isPlanner ? '— [Masked]' : '29.6%';
-  if (cogsEl) cogsEl.textContent = isPlanner ? '— [Restricted]' : 'units × $0.88';
+  if (gmEl) gmEl.textContent = isPlanner ? 'RESTRICTED' : 'See PVM breakdown';
+  if (cogsEl) cogsEl.textContent = isPlanner ? 'RESTRICTED' : 'See PVM breakdown';
 
-  showAppToast(`Switched active view to: ${isPlanner ? 'Supply Planner (Financials Masked)' : 'VP of Retail Sales (Full Access)'}`);
+  showAppToast(`Re-fetching as: ${isPlanner ? 'Supply Planner (server-masked financials)' : 'VP of Retail Sales (server-masked logistics)'}...`);
+
+  // Re-fetch the full anomaly list + current scenario detail under the new role so
+  // every rendered field (narrative, action, masking) reflects real server enforcement.
+  if (typeof loadAnomalyListFromBackend === 'function') {
+    await loadAnomalyListFromBackend();
+    renderSidebarCards();
+  }
+  if (typeof selectScenario === 'function' && APP_STATE.activeAnomalyKey) {
+    await selectScenario(APP_STATE.activeAnomalyKey);
+  }
 }
 
 /* Toast Notification Utility */
