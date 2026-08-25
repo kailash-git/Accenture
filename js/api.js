@@ -76,7 +76,7 @@ class BackendApiClient {
 
   async fetchAnomalyDetail(anomalyKey) {
     if (!this.isConnected) {
-      return ANOMALY_DATASET[anomalyKey] || ANOMALY_DATASET.supply;
+      return ANOMALY_DATASET[anomalyKey] || ANOMALY_DATASET[APP_STATE.activeAnomalyKey];
     }
     try {
       const res = await fetch(`${this.baseUrl}${API_CONFIG.endpoints.anomalyDetail(anomalyKey)}`);
@@ -86,7 +86,7 @@ class BackendApiClient {
     } catch (err) {
       console.warn('API call failed, falling back to dataset store:', err);
     }
-    return ANOMALY_DATASET[anomalyKey] || ANOMALY_DATASET.supply;
+    return ANOMALY_DATASET[anomalyKey] || ANOMALY_DATASET[APP_STATE.activeAnomalyKey];
   }
 
   async approveAction(anomalyKey, actionData = {}) {

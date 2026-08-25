@@ -4,12 +4,22 @@
 
 let drawerMiniChartInstance = null;
 
-function openInvestigationDrawer(anomalyKey) {
-  const anom = ANOMALY_DATASET[anomalyKey];
-  if (!anom) return;
+async function openInvestigationDrawer(anomalyKey) {
+  // Pause the live stream while the user is inspecting -- resumes automatically
+  // on close since pollNextRecord() checks APP_STATE.isDrawerOpen each tick.
+  APP_STATE.isDrawerOpen = true;
+
+  let anom = ANOMALY_DATASET[anomalyKey];
+  if (!anom && typeof apiClient !== 'undefined') {
+    anom = await apiClient.fetchAnomalyDetail(anomalyKey);
+    if (anom) ANOMALY_DATASET[anomalyKey] = anom; // cache so re-opening doesn't refetch
+  }
+  if (!anom) {
+    APP_STATE.isDrawerOpen = false; // nothing to show -- don't leave the stream paused
+    return;
+  }
 
   APP_STATE.activeAnomalyKey = anomalyKey;
-  APP_STATE.isDrawerOpen = true;
 
   // Sync active scenario card in sidebar
   document.querySelectorAll('.scenario-card').forEach(card => {
@@ -111,21 +121,24 @@ function openInvestigationDrawer(anomalyKey) {
 
 function renderDrawerMiniChart(anom) {
   const canvas = document.getElementById('drawerMiniChartCanvas');
-  if (!canvas) return;
+  // Reuses whatever real series is currently loaded in the main revenue
+  // chart (mainRevChartInstance, see charts.js) -- no separate mock dataset.
+  if (!canvas || !mainRevChartInstance) return;
 
   if (drawerMiniChartInstance) {
     drawerMiniChartInstance.destroy();
   }
 
   const ctx = canvas.getContext('2d');
-  const dataset = REVENUE_TIMELINE_DATA.all;
+  const labels = mainRevChartInstance.data.labels;
+  const values = mainRevChartInstance.data.datasets[0].data;
 
   drawerMiniChartInstance = new Chart(ctx, {
     type: 'line',
     data: {
-      labels: dataset.labels,
+      labels: labels,
       datasets: [{
-        data: dataset.values,
+        data: values,
         borderColor: anom.confidence >= 75 ? '#10b981' : '#f59e0b',
         borderWidth: 1.8,
         fill: false,
