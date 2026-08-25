@@ -19,6 +19,28 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_PATH = os.path.join(BASE_DIR, 'data', 'business_bi.db')
 GRAPH_PATH = os.path.join(BASE_DIR, 'data', 'evidence_graph.gpickle')
 
+
+def _load_env_file():
+    """
+    Loads GROQ_API_KEY (and anything else) from a local .env file if present.
+    .env is gitignored -- keeps real secrets out of version control while
+    avoiding having to re-export them into the shell every server start.
+    Existing environment variables always take precedence over the file.
+    """
+    env_path = os.path.join(BASE_DIR, '.env')
+    if not os.path.exists(env_path):
+        return
+    with open(env_path) as f:
+        for line in f:
+            line = line.strip()
+            if not line or line.startswith('#') or '=' not in line:
+                continue
+            key, _, value = line.partition('=')
+            os.environ.setdefault(key.strip(), value.strip())
+
+
+_load_env_file()
+
 # Live-stream demo series: one representative item/state, replayed record by
 # record to simulate "as we get a new record" for the dashboard's live chart.
 LIVE_ITEM = 'FOODS_3_090'
