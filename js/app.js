@@ -2,9 +2,11 @@
    APP INITIALIZATION & INTERACTIVE CONTROLLERS MODULE
    ========================================================================== */
 
-document.addEventListener('DOMContentLoaded', () => {
-  // 1. Initialize Default Scenario
-  selectScenario('supply');
+document.addEventListener('DOMContentLoaded', async () => {
+  // 1. Load the 4 real featured anomalies into the sidebar cards, then boot
+  // the page on the real supply-constraint story (replaces the old
+  // hardcoded selectScenario('supply') against mock ANOMALY_DATASET).
+  await loadRealScenarioCards();
 
   // 2. Setup Scroll Storytelling Observer
   setupScrollRevealObserver();
@@ -19,7 +21,81 @@ document.addEventListener('DOMContentLoaded', () => {
   if (typeof apiClient !== 'undefined') {
     apiClient.checkHealth();
   }
+
+  // 6. Start live-updating revenue stream (polls backend, no-op if offline)
+  if (typeof startLiveStream !== 'undefined') {
+    startLiveStream();
+  }
+
+  // 7. Load real telemetry tiles (and keep refreshing periodically)
+  if (typeof loadTelemetry !== 'undefined') {
+    loadTelemetry();
+    setInterval(loadTelemetry, 10000);
+  }
 });
+
+/* Loads the 4 real featured anomalies (see FEATURED_ANOMALY_KEYS in
+   api_server.py) and populates the sidebar scenario cards from them --
+   replaces the old hardcoded 4-card HTML content entirely. */
+async function loadRealScenarioCards() {
+  try {
+    const res = await fetch(`${API_CONFIG.baseUrl}/api/anomalies/latest`, { signal: AbortSignal.timeout(5000) });
+    if (!res.ok) throw new Error(`status ${res.status}`);
+    const list = await res.json();
+
+    list.forEach(anom => {
+      ANOMALY_DATASET[anom.id] = anom; // seed the cache so selectScenario doesn't refetch
+      const card = document.getElementById(`scenarioCard-${anom.role}`);
+      if (!card) return;
+
+      card.dataset.scenario = anom.id;
+      card.dataset.status = anom.status;
+      card.setAttribute('onclick', `selectScenario('${anom.id}')`);
+
+      const titleEl = card.querySelector('.sc-title');
+      const subtitleEl = card.querySelector('.sc-subtitle');
+      if (titleEl) titleEl.textContent = anom.title;
+      if (subtitleEl) subtitleEl.textContent = `${anom.sku} · ${anom.region.split(' ')[0]} · ${anom.date}`;
+
+      const statLabels = card.querySelectorAll('.stat-label');
+      const statVals = card.querySelectorAll('.stat-val');
+      const genericStats = [
+        { label: 'Category', val: anom.category },
+        { label: 'Z-Score', val: anom.zScore },
+        { label: 'Confidence', val: `${anom.confidence}%` },
+      ];
+      genericStats.forEach((s, i) => {
+        if (statLabels[i]) statLabels[i].textContent = s.label;
+        if (statVals[i]) statVals[i].textContent = s.val;
+      });
+
+      const statusPill = card.querySelector('.sc-status-pill');
+      const pctText = card.querySelector('.sc-pct-text');
+      const barFill = card.querySelector('.sc-bar-fill');
+      if (statusPill) {
+        statusPill.textContent = anom.status.charAt(0).toUpperCase() + anom.status.slice(1);
+        statusPill.className = `sc-status-pill ${anom.status}`;
+      }
+      if (pctText) pctText.textContent = `${anom.confidence}% conf`;
+      if (barFill) {
+        barFill.style.width = `${anom.confidence}%`;
+        const barColor = anom.status === 'critical' ? 'red' : (anom.status === 'warning' ? 'amber' : 'green');
+        barFill.className = `sc-bar-fill ${barColor}`;
+      }
+
+      const inspectBtn = card.querySelector('.sc-action-btn[title="Inspect Deep Dive"]');
+      if (inspectBtn) inspectBtn.setAttribute('onclick', `event.stopPropagation(); openInvestigationDrawer('${anom.id}')`);
+    });
+
+    const supplyAnom = list.find(a => a.role === 'supply');
+    if (supplyAnom) {
+      await selectScenario(supplyAnom.id);
+    }
+  } catch (err) {
+    console.warn('Could not load real scenario cards -- is the backend running?', err);
+    showAppToast('Backend unavailable -- scenario cards could not load real data');
+  }
+}
 
 /* Intersection Observer for Smooth Story Reveal & Count-ups */
 function setupScrollRevealObserver() {
@@ -157,9 +233,13 @@ function toggleSearchFilterPills() {
 }
 
 /* Select Scenario Context */
-function selectScenario(scenarioKey) {
+async function selectScenario(scenarioKey) {
   APP_STATE.activeAnomalyKey = scenarioKey;
-  const anom = ANOMALY_DATASET[scenarioKey];
+  let anom = ANOMALY_DATASET[scenarioKey];
+  if (!anom && typeof apiClient !== 'undefined') {
+    anom = await apiClient.fetchAnomalyDetail(scenarioKey);
+    if (anom) ANOMALY_DATASET[scenarioKey] = anom;
+  }
   if (!anom) return;
 
   document.querySelectorAll('.scenario-card').forEach(card => {
@@ -174,7 +254,7 @@ function selectScenario(scenarioKey) {
   // 2. Set chart time range to correspond to the anomaly year
   const yearKey = anom.date.includes('2012') ? '2012' : '2013';
   const rangeBtn = document.querySelector(`.viz-filter-btn[onclick*="${yearKey}"]`);
-  setChartTimeRange(yearKey, rangeBtn);
+  await setChartTimeRange(yearKey, rangeBtn);
 
   // 3. Update Hero narrative text
   const headlineEl = document.getElementById('heroMainHeadline');

@@ -4,55 +4,38 @@
 
 let mainRevChartInstance = null;
 let gaugeChartInstance = null;
+let LIVE_ANOMALY_NODES = {}; // chart point index -> real graph node id, for click-to-query
 
-const REVENUE_TIMELINE_DATA = {
-  all: {
-    labels: ['Jan 12', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov 12', 'Dec', 'Jan 13', 'Feb', 'Mar', 'Apr', 'May 13', 'Jun', 'Jul', 'Aug 13'],
-    values: [24200, 24800, 25100, 25600, 26200, 25800, 26900, 25200, 23800, 21400, 18200, 21100, 22800, 24100, 25400, 26200, 24900, 26800, 28400, 33200],
-    headlineValue: '24,817',
-    headlineDelta: '▼ 12.4%',
-    isNegative: true,
-    anomalies: {
-      10: { key: 'supply', label: 'Supply Constraint (-$5.4k)', color: '#ef4444' },
-      16: { key: 'billing', label: 'Billing Drift ($3.36)', color: '#f59e0b' },
-      19: { key: 'pricecut', label: 'Price Cut (+42% Vol)', color: '#10b981' }
-    }
-  },
-  '2012': {
-    labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
-    values: [24200, 24800, 25100, 25600, 26200, 25800, 26900, 25200, 23800, 21400, 18200, 21100],
-    headlineValue: '21,950',
-    headlineDelta: '▼ 18.2%',
-    isNegative: true,
-    anomalies: {
-      10: { key: 'supply', label: 'Supply Constraint (-$5.4k)', color: '#ef4444' }
-    }
-  },
-  '2013': {
-    labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug'],
-    values: [22800, 24100, 25400, 26200, 24900, 26800, 28400, 33200],
-    headlineValue: '27,680',
-    headlineDelta: '▲ 14.8%',
-    isNegative: false,
-    anomalies: {
-      4: { key: 'billing', label: 'Billing Drift ($3.36)', color: '#f59e0b' },
-      7: { key: 'pricecut', label: 'Price Cut (+42% Vol)', color: '#10b981' }
-    }
-  }
-};
+const LIVE_QUERY_DEFAULTS = { item: 'FOODS_3_090', state: 'CA' };
 
-function initRevenueChart(rangeKey = 'all') {
+async function initRevenueChart(rangeKey = 'all') {
   const canvas = document.getElementById('mainRevenueCanvas');
   if (!canvas) return;
 
-  const dataset = REVENUE_TIMELINE_DATA[rangeKey];
-  const anomalyMap = dataset.anomalies || {};
+  let series;
+  try {
+    const res = await fetch(
+      `${API_CONFIG.baseUrl}/api/history?item=${LIVE_QUERY_DEFAULTS.item}&state=${LIVE_QUERY_DEFAULTS.state}&year=${rangeKey}`,
+      { signal: AbortSignal.timeout(5000) }
+    );
+    series = res.ok ? await res.json() : null;
+  } catch (err) {
+    series = null;
+  }
+  if (!series || series.error) {
+    showAppToast('Could not load revenue history -- is the backend running?');
+    return;
+  }
 
-  // Point radii and color arrays
-  const pointBgColors = dataset.values.map((_, i) => anomalyMap[i] ? anomalyMap[i].color : 'transparent');
-  const pointBorderColors = dataset.values.map((_, i) => anomalyMap[i] ? '#ffffff' : 'transparent');
-  const pointRadii = dataset.values.map((_, i) => anomalyMap[i] ? 7 : 2);
-  const pointHoverRadii = dataset.values.map((_, i) => anomalyMap[i] ? 10 : 6);
+  const labels = series.map(r => r.date);
+  const values = series.map(r => r.revenue);
+
+  LIVE_ANOMALY_NODES = {}; // rebuilt below from this real series
+  const pointBgColors = series.map(r => r.is_anomaly ? '#ef4444' : 'transparent');
+  const pointBorderColors = series.map(r => r.is_anomaly ? '#ffffff' : 'transparent');
+  const pointRadii = series.map(r => r.is_anomaly ? 7 : 2);
+  const pointHoverRadii = series.map(r => r.is_anomaly ? 10 : 6);
+  series.forEach((r, i) => { if (r.is_anomaly && r.node_id) LIVE_ANOMALY_NODES[i] = r.node_id; });
 
   if (mainRevChartInstance) {
     mainRevChartInstance.destroy();
@@ -67,9 +50,9 @@ function initRevenueChart(rangeKey = 'all') {
   mainRevChartInstance = new Chart(ctx, {
     type: 'line',
     data: {
-      labels: dataset.labels,
+      labels: labels,
       datasets: [{
-        data: dataset.values,
+        data: values,
         borderColor: '#ffffff',
         borderWidth: 1.5,
         fill: true,
@@ -110,8 +93,7 @@ function initRevenueChart(rangeKey = 'all') {
           callbacks: {
             title(items) {
               const idx = items[0].dataIndex;
-              const anom = anomalyMap[idx];
-              return anom ? `${dataset.labels[idx]}  •  ${anom.label}` : dataset.labels[idx];
+              return LIVE_ANOMALY_NODES[idx] ? `${labels[idx]}  •  Anomaly Detected` : labels[idx];
             },
             label(item) {
               return `  Revenue:  $${item.raw.toLocaleString()}`;
@@ -132,36 +114,39 @@ function initRevenueChart(rangeKey = 'all') {
           ticks: {
             color: '#6b7280',
             font: { size: 11, family: 'Inter' },
-            callback: (v) => `$${(v / 1000).toFixed(0)}k`
+            callback: (v) => `$${v.toLocaleString()}`
           }
         }
       },
       onClick(evt, elements) {
         if (!elements || !elements.length) return;
         const idx = elements[0].index;
-        const anom = anomalyMap[idx];
-        if (anom && anom.key) {
-          openInvestigationDrawer(anom.key);
+        const liveNodeId = LIVE_ANOMALY_NODES[idx];
+        if (liveNodeId) {
+          openInvestigationDrawer(liveNodeId);
         }
       }
     }
   });
 
-  // Update big number display
+  // Update big number + delta badge from the real series (last value vs first in range)
   const numEl = document.getElementById('revBigNumber');
   const deltaEl = document.getElementById('revDeltaBadge');
-  if (numEl) numEl.textContent = dataset.headlineValue;
-  if (deltaEl) {
-    deltaEl.textContent = dataset.headlineDelta;
-    deltaEl.className = `viz-delta-badge ${dataset.isNegative ? 'negative' : 'positive'}`;
+  if (numEl && values.length) numEl.textContent = values[values.length - 1].toLocaleString(undefined, { maximumFractionDigits: 0 });
+  if (deltaEl && values.length > 1) {
+    const baseline = values[0];
+    const pctChange = baseline ? ((values[values.length - 1] - baseline) / baseline) * 100 : 0;
+    const isNeg = pctChange < 0;
+    deltaEl.textContent = `${isNeg ? '▼' : '▲'} ${Math.abs(pctChange).toFixed(1)}%`;
+    deltaEl.className = `viz-delta-badge ${isNeg ? 'negative' : 'positive'}`;
   }
 }
 
-function setChartTimeRange(rangeKey, btnElement) {
+async function setChartTimeRange(rangeKey, btnElement) {
   APP_STATE.activeTimeRange = rangeKey;
   document.querySelectorAll('.viz-filter-btn').forEach(btn => btn.classList.remove('active'));
   if (btnElement) btnElement.classList.add('active');
-  initRevenueChart(rangeKey);
+  await initRevenueChart(rangeKey);
 }
 
 /* Semicircular Gauge */
@@ -209,10 +194,10 @@ function getPvmColor(val) {
   return '#718096';
 }
 
-function renderPvmWaterfall(anomalyKey = 'supply') {
-  const anom = ANOMALY_DATASET[anomalyKey] || ANOMALY_DATASET.supply;
+function renderPvmWaterfall(anomalyKey = APP_STATE.activeAnomalyKey) {
+  const anom = ANOMALY_DATASET[anomalyKey] || ANOMALY_DATASET[APP_STATE.activeAnomalyKey];
   const container = document.getElementById('pvmBarsContainer');
-  if (!container) return;
+  if (!container || !anom) return;
 
   const factors = [
     { key: 'volume', label: 'Volume', data: anom.pvm.volume, color: getPvmColor(anom.pvm.volume.val) },
@@ -257,7 +242,8 @@ function togglePvmProductDrill(factorKey) {
   }
 
   APP_STATE.openPvmFactor = factorKey;
-  const anom = ANOMALY_DATASET[APP_STATE.activeAnomalyKey] || ANOMALY_DATASET.supply;
+  const anom = ANOMALY_DATASET[APP_STATE.activeAnomalyKey];
+  if (!anom) return;
   titleEl.textContent = `${factorKey.toUpperCase()} Variance — Underlying Product Breakdown`;
 
   listEl.innerHTML = anom.products.map(p => `
@@ -274,4 +260,140 @@ function togglePvmProductDrill(factorKey) {
   `).join('');
 
   panel.classList.add('open');
+}
+
+/* ==========================================================================
+   LIVE STREAMING -- polls the backend for the next record and appends it to
+   the existing revenue chart, simulating "as we get a new record". Paused
+   automatically while the investigation drawer is open (see drawer.js).
+   ========================================================================== */
+
+const LIVE_STREAM_CONFIG = { pollMs: 2500, maxPoints: 40, intervalId: null };
+
+function startLiveStream() {
+  if (LIVE_STREAM_CONFIG.intervalId) return; // already running
+  LIVE_STREAM_CONFIG.intervalId = setInterval(pollNextRecord, LIVE_STREAM_CONFIG.pollMs);
+}
+
+function stopLiveStream() {
+  clearInterval(LIVE_STREAM_CONFIG.intervalId);
+  LIVE_STREAM_CONFIG.intervalId = null;
+}
+
+async function pollNextRecord() {
+  if (APP_STATE.isDrawerOpen || !mainRevChartInstance) return;
+  try {
+    const res = await fetch(`${API_CONFIG.baseUrl}/api/stream/next`, { signal: AbortSignal.timeout(2000) });
+    if (!res.ok) return;
+    const record = await res.json();
+    if (record.error) return;
+    appendLiveRecord(record);
+  } catch (err) {
+    // backend offline or unreachable this tick -- leave the chart as-is, try again next poll
+  }
+}
+
+function appendLiveRecord(record) {
+  const chart = mainRevChartInstance;
+  const ds = chart.data.datasets[0];
+  const labels = chart.data.labels;
+
+  labels.push(record.date);
+  ds.data.push(record.revenue);
+
+  const idx = labels.length - 1;
+  const isAnom = record.is_anomaly && record.node_id;
+  ds.pointBackgroundColor[idx] = isAnom ? '#ef4444' : 'transparent';
+  ds.pointBorderColor[idx] = isAnom ? '#ffffff' : 'transparent';
+  ds.pointRadius[idx] = isAnom ? 7 : 2;
+  ds.pointHoverRadius[idx] = isAnom ? 10 : 6;
+  if (isAnom) LIVE_ANOMALY_NODES[idx] = record.node_id;
+
+  if (labels.length > LIVE_STREAM_CONFIG.maxPoints) {
+    labels.shift();
+    ds.data.shift();
+    ds.pointBackgroundColor.shift();
+    ds.pointBorderColor.shift();
+    ds.pointRadius.shift();
+    ds.pointHoverRadius.shift();
+    const shifted = {};
+    Object.keys(LIVE_ANOMALY_NODES).forEach(k => {
+      const n = parseInt(k, 10);
+      if (n > 0) shifted[n - 1] = LIVE_ANOMALY_NODES[k];
+    });
+    LIVE_ANOMALY_NODES = shifted;
+  }
+
+  chart.update('none');
+
+  const numEl = document.getElementById('revBigNumber');
+  const deltaEl = document.getElementById('revDeltaBadge');
+  if (numEl) numEl.textContent = record.revenue.toLocaleString(undefined, { maximumFractionDigits: 0 });
+  if (deltaEl && ds.data.length > 1) {
+    const baseline = ds.data[0];
+    const pctChange = baseline ? ((record.revenue - baseline) / baseline) * 100 : 0;
+    const isNeg = pctChange < 0;
+    deltaEl.textContent = `${isNeg ? '▼' : '▲'} ${Math.abs(pctChange).toFixed(1)}%`;
+    deltaEl.className = `viz-delta-badge ${isNeg ? 'negative' : 'positive'}`;
+  }
+}
+
+/* ==========================================================================
+   MANUAL DATE QUERY -- if the picked date isn't itself an anomaly, the
+   backend returns that day's raw current stats instead (see
+   resolve_anomaly_or_stats / build_current_stats_detail in api_server.py).
+   ========================================================================== */
+
+async function queryAnomalyByDate() {
+  const input = document.getElementById('manualQueryDate');
+  if (!input || !input.value) {
+    showAppToast('Pick a date first');
+    return;
+  }
+  try {
+    const url = `${API_CONFIG.baseUrl}/api/query?date=${input.value}&item=${LIVE_QUERY_DEFAULTS.item}&state=${LIVE_QUERY_DEFAULTS.state}`;
+    const res = await fetch(url, { signal: AbortSignal.timeout(3000) });
+    if (!res.ok) {
+      showAppToast('No data for this item/state/date');
+      return;
+    }
+    const result = await res.json();
+    ANOMALY_DATASET[result.id] = result;
+    if (result.category === 'No Anomaly Detected') {
+      showAppToast(`No anomaly on ${input.value} -- showing that day's actual stats`);
+    }
+    openInvestigationDrawer(result.id);
+  } catch (err) {
+    showAppToast('Query failed -- is the backend running?');
+  }
+}
+
+/* ==========================================================================
+   TELEMETRY -- real measured values from /api/telemetry (see TELEMETRY /
+   _record_telemetry in api_server.py), replacing the old hardcoded tiles.
+   ========================================================================== */
+
+async function loadTelemetry() {
+  try {
+    const res = await fetch(`${API_CONFIG.baseUrl}/api/telemetry`, { signal: AbortSignal.timeout(3000) });
+    if (!res.ok) return;
+    const t = await res.json();
+
+    const set = (id, text) => { const el = document.getElementById(id); if (el) el.textContent = text; };
+
+    set('teleSqlVal', t.sql_latency_ms != null ? `${t.sql_latency_ms}ms` : 'n/a');
+    set('teleSqlSub', t.sample_size ? `Avg of last ${Math.min(t.sample_size, 20)} calls` : 'No calls yet');
+
+    set('teleLlmVal', t.llm_latency_s != null ? `${t.llm_latency_s}s` : 'n/a');
+    set('teleLlmSub', t.model);
+
+    set('teleCostVal', t.token_cost_usd != null ? `$${t.token_cost_usd}` : 'n/a');
+    set('teleCostSub', t.avg_tokens_per_call != null
+      ? `${Math.round(t.avg_tokens_per_call)} avg tokens (est. cost)` : 'No chat calls yet');
+
+    set('teleFreshVal', t.data_freshness_days != null ? `${t.data_freshness_days}d` : 'n/a');
+    set('teleFreshSub', 'Fixed historical dataset, not live POS');
+  } catch (err) {
+    // backend offline this tick -- leave tiles as-is
+  }
 }

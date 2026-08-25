@@ -116,7 +116,7 @@
         </div>
 
         <!-- Scenario Card 1: Supply Constraint (Active) -->
-        <div class="scenario-card active" data-scenario="supply" data-status="critical" onclick="selectScenario('supply')">
+        <div class="scenario-card active" id="scenarioCard-supply" data-scenario="supply" data-status="critical" onclick="selectScenario('supply')">
           <div class="sc-top">
             <div class="sc-icon"><svg viewBox="0 0 24 24" style="stroke: var(--accent-blue)"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg></div>
             <div class="sc-info">
@@ -140,8 +140,8 @@
           <div class="sc-bar-track"><div class="sc-bar-fill red" style="width: 87%"></div></div>
         </div>
 
-        <!-- Scenario Card 2: Billing Bug -->
-        <div class="scenario-card" data-scenario="billing" data-status="warning" onclick="selectScenario('billing')">
+        <!-- Scenario Card 2: Conflicting Evidence -->
+        <div class="scenario-card" id="scenarioCard-conflicting" data-scenario="billing" data-status="warning" onclick="selectScenario('billing')">
           <div class="sc-top">
             <div class="sc-icon"><svg viewBox="0 0 24 24" style="stroke: var(--accent-amber)"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></div>
             <div class="sc-info">
@@ -166,7 +166,7 @@
         </div>
 
         <!-- Scenario Card 3: Price Cut + Volume -->
-        <div class="scenario-card" data-scenario="pricecut" data-status="active" onclick="selectScenario('pricecut')">
+        <div class="scenario-card" id="scenarioCard-pricecut" data-scenario="pricecut" data-status="active" onclick="selectScenario('pricecut')">
           <div class="sc-top">
             <div class="sc-info">
               <div class="sc-title">Price Cut + Volume</div>
@@ -185,7 +185,7 @@
         </div>
 
         <!-- Scenario Card 4: New Product Launch (Sparse History) -->
-        <div class="scenario-card" data-scenario="sparse" data-status="active" onclick="selectScenario('sparse')">
+        <div class="scenario-card" id="scenarioCard-sparse" data-scenario="sparse" data-status="active" onclick="selectScenario('sparse')">
           <div class="sc-top">
             <div class="sc-info">
               <div class="sc-title">New Product Launch</div>
@@ -375,6 +375,9 @@
                 <div class="viz-filter-btn active" onclick="setChartTimeRange('all', this)">All (20 Mo)</div>
                 <div class="viz-filter-btn" onclick="setChartTimeRange('2012', this)">2012</div>
                 <div class="viz-filter-btn" onclick="setChartTimeRange('2013', this)">2013</div>
+                <input type="date" id="manualQueryDate" min="2012-01-01" max="2013-12-31"
+                  style="margin-left: 10px; background: transparent; border: 1px solid #373742; border-radius: 6px; color: inherit; padding: 5px 8px; font-size: 12px; font-family: inherit;">
+                <div class="viz-filter-btn" onclick="queryAnomalyByDate()">Query Date</div>
               </div>
             </div>
 
@@ -767,32 +770,32 @@
           </div>
 
           <div class="telemetry-deck-grid">
-            <div class="telemetry-tile" style="cursor: pointer;" onclick="showAppToast('SQL Query Time: 142ms on SQLite indexed tables')" title="View SQL profile">
+            <div class="telemetry-tile" style="cursor: pointer;" onclick="showAppToast('SQL/graph query latency, averaged over the last 20 calls to /api/query and /api/anomalies')" title="View SQL profile">
               <div class="tele-label">SQL Execution Latency</div>
-              <div class="tele-val" data-counter-target="142" data-suffix="ms">142ms</div>
-              <div class="tele-sub">SQLite ground truth query</div>
+              <div class="tele-val" id="teleSqlVal">--</div>
+              <div class="tele-sub" id="teleSqlSub">Loading...</div>
               <div class="tele-status-pill">Target &lt; 500ms</div>
             </div>
 
-            <div class="telemetry-tile" style="cursor: pointer;" onclick="showAppToast('LLM Inference Time: 1.8s (Gemini Flash 2.5)')" title="View LLM profile">
+            <div class="telemetry-tile" style="cursor: pointer;" onclick="showAppToast('LLM inference latency, averaged over the last 20 chatbot calls')" title="View LLM profile">
               <div class="tele-label">LLM Reasoning Latency</div>
-              <div class="tele-val">1.8<span style="font-size: 16px; font-weight: 500; color: var(--text-tertiary);">s</span></div>
-              <div class="tele-sub">Gemini Flash 2.5 Engine</div>
+              <div class="tele-val" id="teleLlmVal">--</div>
+              <div class="tele-sub" id="teleLlmSub">Loading...</div>
               <div class="tele-status-pill">On Target</div>
             </div>
 
-            <div class="telemetry-tile" style="cursor: pointer;" onclick="showAppToast('Cost Analysis: $0.004 per anomaly run (4,120 tokens)')" title="View Token Economics">
+            <div class="telemetry-tile" style="cursor: pointer;" onclick="showAppToast('Estimated cost per chatbot call -- rough order-of-magnitude, not exact billing')" title="View Token Economics">
               <div class="tele-label">Token Cost per Run</div>
-              <div class="tele-val">$0.004</div>
-              <div class="tele-sub">4,120 avg token footprint</div>
-              <div class="tele-status-pill">Efficient</div>
+              <div class="tele-val" id="teleCostVal">--</div>
+              <div class="tele-sub" id="teleCostSub">Loading...</div>
+              <div class="tele-status-pill">Estimate</div>
             </div>
 
-            <div class="telemetry-tile" style="cursor: pointer;" onclick="showAppToast('Data Freshness: 0 days lag · Synchronized with latest POS feed')" title="View Synchronization state">
+            <div class="telemetry-tile" style="cursor: pointer;" onclick="showAppToast('Days since the dataset\'s most recent record -- this is a fixed historical dataset, not a live feed')" title="View Synchronization state">
               <div class="tele-label">Data Freshness</div>
-              <div class="tele-val">0<span style="font-size: 16px; font-weight: 500; color: var(--text-tertiary);">d</span></div>
-              <div class="tele-sub">Synchronized with daily POS</div>
-              <div class="tele-status-pill">Real-time</div>
+              <div class="tele-val" id="teleFreshVal">--</div>
+              <div class="tele-sub" id="teleFreshSub">Loading...</div>
+              <div class="tele-status-pill">Historical Dataset</div>
             </div>
           </div>
         </section>
@@ -944,6 +947,26 @@
   <!-- Toast Notification Container -->
   <div class="app-toast-container" id="appToastContainer"></div>
 
+  <!-- General Query Chatbot (Groq-backed, grounded in the latest detected anomaly) -->
+  <div id="chatWidget" style="position: fixed; bottom: 20px; right: 20px; width: 340px; z-index: 9999; font-family: inherit;">
+    <div id="chatToggleBtn" onclick="toggleChatWidget()" style="background: #10b981; color: #0a0a0a; border-radius: 24px; padding: 10px 16px; cursor: pointer; font-size: 13px; font-weight: 700; box-shadow: 0 4px 12px rgba(0,0,0,0.35); display: inline-block; float: right;">
+      💬 Ask about the data
+    </div>
+    <div id="chatPanel" style="display: none; clear: both; margin-top: 8px; background: #1a1a20; border: 1px solid #373742; border-radius: 10px; overflow: hidden; box-shadow: 0 8px 24px rgba(0,0,0,0.45);">
+      <div style="padding: 10px 12px; background: #121215; font-size: 12px; font-weight: 700; color: #fff; border-bottom: 1px solid #373742; display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+        <span>KPI Assistant &middot; grounded in the latest detected anomaly</span>
+        <span onclick="closeChatWidget()" title="Close" style="cursor: pointer; color: #9ca3af; font-weight: 700; font-size: 14px; line-height: 1; padding: 2px 4px;">&times;</span>
+      </div>
+      <div id="chatMessages" style="max-height: 280px; overflow-y: auto; padding: 10px 12px; font-size: 12px; color: #cbd5e1; display: flex; flex-direction: column; gap: 8px;"></div>
+      <div style="display: flex; border-top: 1px solid #373742;">
+        <input id="chatInput" type="text" placeholder="Why did revenue drop?"
+          style="flex: 1; background: transparent; border: none; color: #fff; padding: 10px 12px; font-size: 12px; outline: none;"
+          onkeydown="if(event.key==='Enter') sendChatMessage()">
+        <button onclick="sendChatMessage()" style="background: #10b981; border: none; color: #0a0a0a; padding: 0 14px; cursor: pointer; font-size: 12px; font-weight: 700;">Ask</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Modular Scripts Architecture -->
   <script src="js/state.js"></script>
   <script src="js/api.js"></script>
@@ -951,6 +974,7 @@
   <script src="js/drawer.js"></script>
   <script src="js/evidence.js"></script>
   <script src="js/actions.js"></script>
+  <script src="js/chat.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>

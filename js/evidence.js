@@ -10,8 +10,9 @@ const KNOWLEDGE_GRAPH_RELATIONS = {
   sku: [0, 1, 2]
 };
 
-function renderEvidenceTimeline(anomalyKey = 'supply') {
-  const anom = ANOMALY_DATASET[anomalyKey] || ANOMALY_DATASET.supply;
+function renderEvidenceTimeline(anomalyKey = APP_STATE.activeAnomalyKey) {
+  const anom = ANOMALY_DATASET[anomalyKey] || ANOMALY_DATASET[APP_STATE.activeAnomalyKey];
+  if (!anom) return;
   const container = document.getElementById('evidenceTimelineDeck');
   if (!container) return;
 

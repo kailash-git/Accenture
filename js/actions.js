@@ -6,7 +6,7 @@ let pendingDismissTimeout = null;
 let lastDismissedCardId = null;
 
 function handleActionApprove(anomalyKey, stepIndex, btn) {
-  const anom = ANOMALY_DATASET[anomalyKey] || ANOMALY_DATASET.supply;
+  const anom = ANOMALY_DATASET[anomalyKey] || ANOMALY_DATASET[APP_STATE.activeAnomalyKey];
   const title = (stepIndex === -1 || stepIndex === undefined) ? anom.recommendedAction.title : anom.recommendedAction.steps[stepIndex];
 
   if (typeof apiClient !== 'undefined') {
@@ -39,7 +39,7 @@ function handleActionAssign(anomalyKey) {
 }
 
 function openAssignmentModal(anomalyKey) {
-  const anom = ANOMALY_DATASET[anomalyKey] || ANOMALY_DATASET.supply;
+  const anom = ANOMALY_DATASET[anomalyKey] || ANOMALY_DATASET[APP_STATE.activeAnomalyKey];
   const modalBody = document.getElementById('assignModalBody');
   if (!modalBody) return;
 
